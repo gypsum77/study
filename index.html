@@ -55,6 +55,13 @@ button{cursor:pointer}
 .part .tx{flex:1;min-width:0;font-size:14px;font-weight:600}
 .part .tx small{display:block;color:var(--sub);font-weight:400;font-size:12px}
 .part.full{background:var(--grn2)} .part.full .tx small{color:var(--grn)}
+.who{display:flex;flex-wrap:wrap;gap:6px}
+.wc{padding:6px 11px;border-radius:99px;background:var(--grn2);color:var(--grn);font-size:14px;font-weight:700}
+.wc small{font-weight:500;opacity:.75;font-size:12px}
+.wc.me{background:var(--acc2);color:var(--acc)}
+.wc.tch{background:var(--org2);color:var(--org)}
+.wc.tch.off,.wc.off{background:var(--bg);color:var(--sub)}
+.live{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:5px;vertical-align:1px;box-shadow:0 0 0 3px rgba(34,197,94,.2)}
 .week{display:flex;gap:6px;margin-top:8px}
 .week div{flex:1;text-align:center;font-size:12px;color:var(--sub)}
 .week i{display:block;height:30px;border-radius:9px;background:var(--bg);margin-bottom:3px;font-style:normal;line-height:30px;font-size:16px}
@@ -394,6 +401,23 @@ function render() {
 }
 
 /* ============ 홈 ============ */
+/* 우리 반 카드: 지금 접속 중(초록 점)인 친구·담임 선생님, 오늘 다녀간 친구 */
+function clsInner(ct) {
+  const now = ct.came.filter(x => x.on), past = ct.came.filter(x => !x.on);
+  const tch = ct.teacherOn ? '<span class="wc tch"><i class="live"></i>🧑‍🏫 담임 선생님</span>'
+    : '<span class="wc tch off">🧑‍🏫 담임 선생님 <small>' + (ct.teacher ? '오늘 ' + ct.teacher : '아직') + '</small></span>';
+  return '<h2>👋 우리 반 지금<span class="r"><i class="live"></i>접속 중 ' + (now.length + (ct.teacherOn ? 1 : 0)) + '명</span></h2>' +
+    '<div class="who">' + tch + now.map(x => '<span class="wc' + (x.me ? ' me' : '') + '"><i class="live"></i>' + esc(x.name) + (x.me ? ' <small>나</small>' : '') + '</span>').join('') + '</div>' +
+    '<div class="muted" style="margin:10px 0 6px;font-size:13px">오늘 다녀간 친구 ' + ct.came.length + ' / ' + ct.total + '명' +
+    (ct.came.length >= ct.total && ct.total ? ' · 모두 들어왔어요! 🎉' : '') + '</div>' +
+    (past.length ? '<div class="who">' + past.map(x => '<span class="wc off">' + esc(x.name) + ' <small>' + esc(x.at) + '</small></span>').join('') + '</div>' : '');
+}
+function pingClass() {
+  if (!AUTH || !ST || document.hidden) return;
+  call('ping', AUTH).then(ct => { ST.classToday = ct; const el = $('clsCard'); if (el) el.innerHTML = clsInner(ct); }).catch(() => {});
+}
+setInterval(pingClass, 60000);
+
 function rHome() {
   const c = ST.cfg, m = ST.me, td = ST.today, p = td.parts || {}, pt = c.pt, t = c.today;
   let h = '';
@@ -425,6 +449,8 @@ function rHome() {
     wk += '<div><i class="' + (on ? 'on' : '') + (i === 0 ? ' now' : '') + '">' + (on ? '🔥' : '') + '</i>' + WD[new Date(d + 'T12:00:00').getDay()] + '</div>';
   }
   h += '<div class="card"><h2>🔥 ' + m.streak + '일 연속<span class="r">최장 ' + m.best + '일</span></h2><div class="muted">매일 들어오면 연속 보너스가 하루 +1씩 커져요 (최대 +' + pt.streakMax + ')</div><div class="week">' + wk + '</div></div>';
+  // 우리 반 (1분마다 저절로 바뀜)
+  if (ST.classToday) h += '<div class="card" id="clsCard">' + clsInner(ST.classToday) + '</div>';
   // 선생님 코멘트
   const cm = ST.comments;
   if (cm.length) {
